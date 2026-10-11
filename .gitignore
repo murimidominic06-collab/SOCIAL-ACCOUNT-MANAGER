@@ -1,0 +1,10 @@
+.env
+users.db
+*.db
+venv/
+__pycache__/
+*_backup*.py
+app_before_*.py
+app_broken_*.py
+app_good_*.py
+whatsapp_test.py

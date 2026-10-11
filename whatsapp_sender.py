@@ -1,31 +1,32 @@
 import os
 import re
+
 import requests
 
 
 def send_whatsapp_message(recipient, message):
-    """Send a text message through the official WhatsApp Cloud API."""
+    """Send a text message through the WhatsApp Cloud API.
+
+    Returns (ok, detail).
+    """
     token = os.environ.get("WA_ACCESS_TOKEN", "").strip()
-    phone_number_id = os.environ.get("WA_PHONE_NUMBER_ID", "").strip()
-    api_version = os.environ.get("WA_API_VERSION", "v22.0").strip()
+    phone_id = os.environ.get("WA_PHONE_NUMBER_ID", "").strip()
+    version = os.environ.get("WA_API_VERSION", "v22.0").strip() or "v22.0"
 
-    if not token or not phone_number_id:
-        return {"success": False,
-                "message": "WhatsApp credentials are missing in this session."}
+    if not token or not phone_id:
+        return False, "WA_ACCESS_TOKEN or WA_PHONE_NUMBER_ID is not set."
 
-    to = re.sub(r"[\s\-\+\(\)]", "", recipient)
-    if not to.isdigit() or not 8 <= len(to) <= 15:
-        return {"success": False,
-                "message": "Enter the number with country code, digits only (e.g. 2547XXXXXXXX)."}
+    number = re.sub(r"\D", "", recipient or "")
+    if not 8 <= len(number) <= 15:
+        return False, "Enter the number with country code, e.g. 254712345678."
 
-    if not message or len(message) > 1000:
-        return {"success": False,
-                "message": "Message must be 1 to 1000 characters."}
+    if not message or len(message) > 4096:
+        return False, "Message must be between 1 and 4096 characters."
 
-    url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
+    url = f"https://graph.facebook.com/{version}/{phone_id}/messages"
     payload = {
         "messaging_product": "whatsapp",
-        "to": to,
+        "to": number,
         "type": "text",
         "text": {"body": message},
     }
@@ -39,13 +40,12 @@ def send_whatsapp_message(recipient, message):
         )
         data = response.json()
     except requests.RequestException:
-        return {"success": False, "message": "Could not reach Meta. Try again."}
+        return False, "Could not reach Meta. Check your internet connection."
     except ValueError:
-        return {"success": False, "message": "Meta returned an unreadable response."}
+        return False, "Meta returned an unreadable response."
 
     if response.ok:
-        return {"success": True, "message": "Message accepted by WhatsApp."}
+        return True, "Message accepted by WhatsApp."
 
     error = data.get("error", {}) if isinstance(data, dict) else {}
-    return {"success": False,
-            "message": error.get("message", f"Meta returned HTTP {response.status_code}.")}
+    return False, error.get("message", f"Meta returned HTTP {response.status_code}.")

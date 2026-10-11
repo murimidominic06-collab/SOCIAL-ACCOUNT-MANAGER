@@ -8,3 +8,4 @@ app_before_*.py
 app_broken_*.py
 app_good_*.py
 whatsapp_test.py
+setup_accounts.py
